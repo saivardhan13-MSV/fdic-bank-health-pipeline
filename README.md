@@ -1,5 +1,13 @@
 # FDIC Bank Health Pipeline
 
+> **In plain English:** Every three months, each U.S. bank reports its finances to the
+> government: how much money it holds, how much it lent, whether it's profitable, and
+> whether borrowers are paying back their loans. This project **automatically collects
+> those reports for about 4,300 banks every day, cleans them up, checks each bank's
+> health, and gives it a simple grade**: Strong, Satisfactory, Watch or High Risk. Think
+> of it as a **fitness tracker for banks**. It also shows big-picture trends, like the
+> number of U.S. banks dropping from about 6,400 to about 4,250 in 11 years.
+
 A daily ELT pipeline that pulls **real public data on every FDIC-insured U.S. bank**
 (~4,300 active banks, ~27,800 institutions since 1934, ~4,100 failures) from the FDIC
 BankFind API, lands it in **S3**, loads it into **Snowflake**, and models it with **dbt**
