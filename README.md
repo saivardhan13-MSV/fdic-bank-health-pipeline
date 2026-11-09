@@ -26,6 +26,34 @@ flowchart LR
     AF -. dbt build .-> MARTS
 ```
 
+## See it running
+
+**Airflow 3: daily DAG, every task green.** Three Lambda extracts run in parallel via
+dynamic task mapping, then COPY INTO, source freshness and `dbt build`.
+
+![Airflow DAG run graph](docs/images/airflow-graph.png)
+
+![Airflow DAG overview: schedule, latest run, zero failed tasks](docs/images/airflow-overview.png)
+
+**dbt lineage: raw sources → staging → intermediate → star schema → scorecard and trends.**
+
+![dbt lineage graph](docs/images/dbt-lineage.png)
+
+**Bank health scorecard in Snowflake: the 15 largest U.S. banks, latest quarter.**
+
+![Bank health scorecard query results](docs/images/snowflake-scorecard.png)
+
+**Industry consolidation:** reporting banks fell from ~6,400 (2015) to ~4,250 (2026).
+
+![Reporting banks per quarter, 2015-2026](docs/images/snowflake-trends.png)
+
+<details>
+<summary>dbt docs home page (custom project overview)</summary>
+
+![dbt docs overview](docs/images/dbt-docs-overview.png)
+
+</details>
+
 ## What it produces
 
 | Model | Grain | What it's for |
