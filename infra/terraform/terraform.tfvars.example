@@ -6,3 +6,7 @@ alert_email     = ""
 # After step 2 (Snowflake storage integration), paste from DESC INTEGRATION:
 snowflake_iam_user_arn = ""
 snowflake_external_id  = ""
+
+# Monthly AWS cost alert (budget.tf). Leave empty to skip.
+budget_alert_email = ""
+budget_limit_usd   = "5"
