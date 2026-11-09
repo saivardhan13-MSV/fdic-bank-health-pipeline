@@ -1,0 +1,11 @@
+charter_class_code,charter_class_description,charter_type
+N,National bank (OCC supervised),Commercial bank
+NM,State-chartered nonmember bank (FDIC supervised),Commercial bank
+SM,State-chartered Federal Reserve member bank,Commercial bank
+NC,Noninsured commercial bank,Commercial bank
+NS,Noninsured stock savings bank,Savings institution
+SB,Federally chartered savings bank (OCC supervised),Savings institution
+SI,State-chartered stock savings bank (FDIC supervised),Savings institution
+SL,State-chartered stock savings and loan association,Savings institution
+SA,Federally chartered savings association (OCC supervised),Savings institution
+OI,Insured U.S. branch of a foreign chartered institution,Foreign branch

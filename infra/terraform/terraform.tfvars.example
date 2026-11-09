@@ -1,0 +1,8 @@
+aws_region      = "us-east-1"
+environment     = "dev"
+raw_bucket_name = "fdic-bank-health-raw-<your-initials>-<random>"
+alert_email     = ""
+
+# After step 2 (Snowflake storage integration), paste from DESC INTEGRATION:
+snowflake_iam_user_arn = ""
+snowflake_external_id  = ""

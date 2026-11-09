@@ -1,0 +1,30 @@
+version: 2
+
+sources:
+  - name: fdic_raw
+    description: >
+      Raw FDIC BankFind API records landed in S3 by the ingestion Lambda and loaded with
+      COPY INTO. Append-only: one row per record per extract run.
+    database: fdic
+    schema: raw
+    config:
+      loaded_at_field: loaded_at
+      freshness: # the pipeline runs daily
+        warn_after: { count: 30, period: hour }
+        error_after: { count: 54, period: hour }
+    tables:
+      - name: fdic_institutions
+        description: Daily full snapshot of every FDIC-insured institution, active and inactive.
+        columns:
+          - name: record
+            data_tests: [not_null]
+      - name: fdic_financials
+        description: Quarterly call report financials, one record per bank per report date.
+        columns:
+          - name: record
+            data_tests: [not_null]
+      - name: fdic_failures
+        description: Daily full snapshot of bank failures and assistance transactions since 1934.
+        columns:
+          - name: record
+            data_tests: [not_null]

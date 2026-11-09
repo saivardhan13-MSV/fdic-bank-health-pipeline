@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Local extracts
+data/
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/profiles.yml
+dbt/package-lock.yml
+
+# Terraform
+infra/terraform/.terraform/
+infra/terraform/build/
+infra/terraform/*.tfstate*
+infra/terraform/terraform.tfvars
+infra/terraform/.terraform.lock.hcl
+
+# Secrets
+*.p8
+*.pem
+.env
+
+# Account-specific Snowflake bootstrap
+snowflake/bootstrap_generated.sql
+infra/terraform/tfplan
+dbt/.user.yml

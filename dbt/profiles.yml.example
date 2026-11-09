@@ -1,0 +1,26 @@
+# Copy to ~/.dbt/profiles.yml (or set DBT_PROFILES_DIR). Secrets come from env vars.
+fdic_bank_health:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"          # e.g. abc12345.us-east-1
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      authenticator: snowflake_jwt                            # key-pair auth
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH') }}"
+      role: fdic_transformer
+      warehouse: fdic_wh
+      database: fdic
+      schema: "dbt_{{ env_var('USER', env_var('USERNAME', 'dev')) | lower }}"  # dev schemas are prefixed
+      threads: 4
+    prod:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      authenticator: snowflake_jwt
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH') }}"
+      role: fdic_transformer
+      warehouse: fdic_wh
+      database: fdic
+      schema: analytics
+      threads: 8

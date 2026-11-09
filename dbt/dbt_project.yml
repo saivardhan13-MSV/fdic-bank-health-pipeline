@@ -1,0 +1,45 @@
+name: fdic_bank_health
+version: "1.0.0"
+config-version: 2
+profile: fdic_bank_health
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+analysis-paths: ["analyses"]
+
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  # Call reports can be amended, so incremental models re-process this many recent quarters.
+  incremental_lookback_quarters: 4
+  # First quarter kept in the date dimension.
+  history_start_date: "2000-01-01"
+
+models:
+  fdic_bank_health:
+    +persist_docs:
+      relation: true
+      columns: true
+    staging:
+      +schema: staging
+      +materialized: view
+    intermediate:
+      +schema: intermediate
+      +materialized: view
+    marts:
+      +schema: marts
+      +materialized: table
+      +grants:
+        select: ["fdic_reporter"]
+
+seeds:
+  fdic_bank_health:
+    +schema: reference
+
+data_tests:
+  fdic_bank_health:
+    +store_failures: true # failing rows land in a table you can query
+    +schema: test_failures

@@ -1,0 +1,87 @@
+version: 2
+
+models:
+  - name: stg_fdic__institutions
+    description: One row per FDIC-insured institution (current attributes), deduped to the latest snapshot.
+    columns:
+      - name: cert
+        description: FDIC certificate number. Natural key for a bank.
+        data_tests: [unique, not_null]
+      - name: bank_name
+        data_tests: [not_null]
+      - name: state_code
+        data_tests: [not_null]
+      - name: is_active
+        data_tests: [not_null]
+      - name: primary_regulator
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["FDIC", "OCC", "FED", "OTS", "STATE"]
+              config: { severity: warn }
+      - name: charter_class_code
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('charter_classes')
+                field: charter_class_code
+              config: { severity: warn }
+
+  - name: stg_fdic__financials
+    description: One row per bank per quarter-end report date. Amounts in whole USD; ratios in percent.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [cert, report_date]
+    columns:
+      - name: cert
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_fdic__institutions')
+                field: cert
+              config: { severity: warn }
+        description: >
+          ~80 non-insured trust companies file call reports but are missing from the
+          /institutions endpoint (a known FDIC data gap). Warn here; dim_bank adds them as
+          inferred members so the fact -> dim relationship test (error level) still holds.
+      - name: report_date
+        data_tests: [not_null, is_quarter_end]
+      - name: total_assets_usd
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+      - name: total_deposits_usd
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+      - name: tier1_leverage_ratio_pct
+        description: Tier 1 capital / average assets. 5%+ is "well capitalized" under prompt corrective action.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: -50
+                max_value: 100
+              config: { severity: warn } # tiny / de novo banks report extreme values
+      - name: roa_pct
+        description: Return on assets, annualized, year-to-date.
+
+  - name: stg_fdic__failures
+    description: One row per bank failure or FDIC assistance transaction since 1934.
+    columns:
+      - name: failure_id
+        data_tests: [unique, not_null]
+      - name: failure_date
+        data_tests: [not_null]
+      - name: resolution_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["FAILURE", "ASSISTANCE"]
+      - name: cert
+        description: Null for many pre-1990s records.

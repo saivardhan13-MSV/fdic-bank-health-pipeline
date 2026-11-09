@@ -1,0 +1,124 @@
+version: 2
+
+models:
+  - name: dim_bank
+    description: >
+      One row per institution with current attributes (SCD type 1). Includes inferred
+      members: banks that file call reports but are absent from the FDIC institutions list
+      (mostly non-insured trust companies), built from the financials as filed.
+    columns:
+      - name: is_inferred_member
+        data_tests: [not_null]
+      - name: is_fdic_insured
+        data_tests: [not_null]
+      - name: bank_key
+        description: Surrogate key (hash of CERT).
+        data_tests: [unique, not_null]
+      - name: cert
+        data_tests: [unique, not_null]
+      - name: charter_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["Commercial bank", "Savings institution", "Foreign branch", "Unknown"]
+
+  - name: dim_bank_history
+    description: SCD type 2 history of bank attributes, built from snap_fdic_institutions.
+    columns:
+      - name: bank_version_key
+        data_tests: [unique, not_null]
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "valid_to is null or valid_to > valid_from"
+
+  - name: dim_quarter
+    description: One row per calendar quarter-end.
+    columns:
+      - name: quarter_key
+        description: YYYYMMDD integer of the quarter-end date.
+        data_tests: [unique, not_null]
+      - name: report_date
+        data_tests: [unique, not_null, is_quarter_end]
+
+  - name: fct_bank_quarterly_financials
+    description: >
+      Quarterly call report financials. Grain: bank x quarter-end. Incremental merge;
+      the most recent quarters are reprocessed each run to absorb amended filings.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [cert, report_date]
+    columns:
+      - name: bank_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_bank')
+                field: bank_key
+      - name: quarter_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_quarter')
+                field: quarter_key
+      - name: total_assets_usd
+        data_tests: [not_null]
+
+  - name: fct_bank_failures
+    description: One row per bank failure or FDIC assistance transaction.
+    columns:
+      - name: failure_id
+        data_tests: [unique, not_null]
+      - name: bank_key
+        description: Null when the FDIC record has no CERT (mostly pre-1990s).
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_bank')
+                field: bank_key
+              config: { severity: warn }
+      - name: estimated_loss_usd
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+              config: { severity: warn }
+
+  - name: bank_health_scorecard
+    description: >
+      Health scorecard per bank per quarter: CAMELS-style risk flags plus a 0-100 composite
+      of peer percentiles within the same quarter and asset-size bucket. Analytical only,
+      not a regulatory rating.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [cert, report_date]
+    columns:
+      - name: health_tier
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Strong", "Satisfactory", "Watch", "High Risk"]
+      - name: composite_score
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 100
+      - name: risk_flag_count
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 6
+
+  - name: industry_quarterly_trends
+    description: Industry totals, medians, tier counts and failures per quarter.
+    columns:
+      - name: quarter_key
+        data_tests: [unique, not_null]

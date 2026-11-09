@@ -1,0 +1,8 @@
+version: 2
+
+seeds:
+  - name: charter_classes
+    description: FDIC institution class codes (BKCLASS) with readable descriptions.
+    columns:
+      - name: charter_class_code
+        data_tests: [unique, not_null]

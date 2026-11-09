@@ -1,0 +1,21 @@
+version: 2
+
+models:
+  - name: int_financials__enriched
+    description: >
+      Financials plus derived metrics that look across a bank's quarters (quarterly net
+      income, QoQ / YoY growth) and its peer size bucket.
+    columns:
+      - name: financial_id
+        data_tests: [unique, not_null]
+      - name: asset_size_bucket
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["1. Under $100M", "2. $100M - $1B", "3. $1B - $10B", "4. $10B - $100B", "5. Over $100B", "Unknown"]
+      - name: uninsured_deposit_share_pct
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 100

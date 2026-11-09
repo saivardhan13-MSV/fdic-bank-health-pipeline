@@ -1,0 +1,93 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Ingestion, DAG and dashboard (lint + unit tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest ruff
+      - name: Lint
+        run: ruff check ingestion airflow dashboard --line-length 120
+      - name: Unit tests
+        working-directory: ingestion
+        run: pytest -q
+
+  dbt-parse:
+    name: dbt parse (no warehouse needed)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dbt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "dbt-core>=1.9,<2" "dbt-snowflake>=1.9,<2"
+      - name: Dummy profile (parse never connects)
+        run: |
+          cat > profiles.yml <<'EOF'
+          fdic_bank_health:
+            target: ci
+            outputs:
+              ci: {type: snowflake, account: x, user: x, password: x, role: x, warehouse: x, database: fdic, schema: ci, threads: 1}
+          EOF
+      - run: dbt deps --profiles-dir .
+      - run: dbt parse --profiles-dir . --no-partial-parse
+
+  dbt-build-ci:
+    # Builds only changed models (and their children) into a throwaway schema in Snowflake.
+    # Turn on by setting the repo variable SNOWFLAKE_CI_ENABLED=true plus the secrets below.
+    name: dbt build changed models (Snowflake)
+    if: github.event_name == 'pull_request' && vars.SNOWFLAKE_CI_ENABLED == 'true'
+    needs: dbt-parse
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dbt
+    env:
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_PRIVATE_KEY_PATH: /tmp/rsa_key.p8
+      USER: ci_pr_${{ github.event.number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "dbt-core>=1.9,<2" "dbt-snowflake>=1.9,<2"
+      - run: echo "${{ secrets.SNOWFLAKE_PRIVATE_KEY }}" > /tmp/rsa_key.p8
+      - run: cp profiles.yml.example profiles.yml && dbt deps --profiles-dir .
+      - name: Build modified models + downstream, deferring unchanged parents to prod
+        run: |
+          if [ -d prod-manifest ]; then
+            dbt build --profiles-dir . --target dev --select state:modified+ --defer --state prod-manifest
+          else
+            dbt build --profiles-dir . --target dev
+          fi
+
+  terraform:
+    name: Terraform fmt + validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false -input=false
+      - run: terraform validate
