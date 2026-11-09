@@ -1,0 +1,19 @@
+# Mounts host folders into the Airflow containers (read-only where possible):
+#   - the dbt project (read-write: dbt writes target/, logs/, dbt_packages/)
+#   - the Snowflake service-user private key (never copied into the image)
+#   - your AWS CLI profile (credentials stay on your machine)
+# Defaults work on Windows (USERPROFILE) and macOS/Linux (HOME); override any path by
+# exporting HOST_DBT_DIR / HOST_SNOWFLAKE_KEYS_DIR / HOST_AWS_DIR before `astro dev start`.
+x-fdic-mounts: &fdic-mounts
+  volumes:
+    - ${HOST_DBT_DIR:-../dbt}:/usr/local/airflow/dbt
+    - ${HOST_SNOWFLAKE_KEYS_DIR:-${USERPROFILE:-${HOME}}/.snowflake/keys}:/usr/local/airflow/keys:ro
+    - ${HOST_AWS_DIR:-${USERPROFILE:-${HOME}}/.aws}:/usr/local/airflow/aws:ro
+
+services:
+  scheduler:
+    <<: *fdic-mounts
+  dag-processor:
+    <<: *fdic-mounts
+  triggerer:
+    <<: *fdic-mounts

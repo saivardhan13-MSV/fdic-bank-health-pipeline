@@ -1,5 +1,5 @@
-apache-airflow-providers-amazon>=9.0.0
-apache-airflow-providers-snowflake>=6.0.0
-apache-airflow-providers-common-sql>=1.20.0
-dbt-core>=1.9,<2
-dbt-snowflake>=1.9,<2
+# Airflow providers (installed into the Astro Runtime image). dbt is installed separately
+# in its own virtualenv by the Dockerfile.
+apache-airflow-providers-amazon
+apache-airflow-providers-snowflake
+apache-airflow-providers-common-sql

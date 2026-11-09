@@ -28,19 +28,33 @@ import os
 from datetime import date, timedelta
 
 import pendulum
-from airflow.decorators import dag, task
 from airflow.exceptions import AirflowException
-from airflow.models import Variable
-from airflow.models.param import Param
-from airflow.operators.bash import BashOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+
+try:  # Airflow 3
+    from airflow.providers.standard.operators.bash import BashOperator
+    from airflow.sdk import Param, Variable, dag, task
+except ImportError:  # Airflow 2.x
+    from airflow.decorators import dag, task
+    from airflow.models import Variable
+    from airflow.models.param import Param
+    from airflow.operators.bash import BashOperator
 
 log = logging.getLogger(__name__)
 
+DBT_BIN = os.environ.get("FDIC_DBT_BIN", "dbt")  # dbt lives in its own venv in the image
 DBT_PROJECT_DIR = os.environ.get("FDIC_DBT_PROJECT_DIR", "/opt/airflow/dbt")
 DBT_PROFILES_DIR = os.environ.get("FDIC_DBT_PROFILES_DIR", DBT_PROJECT_DIR)
 DBT_TARGET = os.environ.get("FDIC_DBT_TARGET", "prod")
 BACKFILL_CHUNK_QUARTERS = 8
+
+
+def _variable(key: str, default: str | None = None) -> str | None:
+    """Variable.get with a default that works on Airflow 2 and 3."""
+    try:
+        return Variable.get(key)
+    except Exception:  # noqa: BLE001 - missing variable raises different types across versions
+        return default
 
 
 def _quarter_ends_since(start_year: int, today: date) -> list[str]:
@@ -59,10 +73,10 @@ def notify_failure(context) -> None:
     ti = context["task_instance"]
     message = (
         f"FDIC pipeline failed: dag={ti.dag_id} task={ti.task_id} "
-        f"run={context['run_id']} try={ti.try_number}\nLog: {ti.log_url}"
+        f"run={context['run_id']} try={ti.try_number}\nLog: {getattr(ti, 'log_url', 'n/a')}"
     )
     log.error(message)
-    topic_arn = Variable.get("fdic_alert_sns_topic_arn", default_var=None)
+    topic_arn = _variable("fdic_alert_sns_topic_arn")
     if topic_arn:
         from airflow.providers.amazon.aws.hooks.sns import SnsHook
 
@@ -128,7 +142,7 @@ def fdic_bank_health_daily():
     def invoke_extract(payload: dict) -> dict:
         from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 
-        function_name = Variable.get("fdic_lambda_function", default_var="fdic-extract")
+        function_name = _variable("fdic_lambda_function", "fdic-extract")
         response = LambdaHook(aws_conn_id="aws_default").invoke_lambda(
             function_name=function_name,
             invocation_type="RequestResponse",
@@ -166,7 +180,10 @@ def fdic_bank_health_daily():
     dbt_env = {"DBT_PROFILES_DIR": DBT_PROFILES_DIR}
     dbt_source_freshness = BashOperator(
         task_id="dbt_source_freshness",
-        bash_command=f"cd {DBT_PROJECT_DIR} && dbt deps --quiet && dbt source freshness --target {DBT_TARGET}",
+        bash_command=(
+            f"cd {DBT_PROJECT_DIR} && {DBT_BIN} deps --quiet"
+            f" && {DBT_BIN} source freshness --target {DBT_TARGET}"
+        ),
         env=dbt_env,
         append_env=True,
     )
@@ -175,7 +192,7 @@ def fdic_bank_health_daily():
         task_id="dbt_build",
         # `build` runs snapshot, seeds, models and tests in DAG order: a failing test
         # stops everything downstream of it from being published.
-        bash_command=f"cd {DBT_PROJECT_DIR} && dbt build --target {DBT_TARGET}",
+        bash_command=f"cd {DBT_PROJECT_DIR} && {DBT_BIN} build --target {DBT_TARGET}",
         env=dbt_env,
         append_env=True,
         execution_timeout=timedelta(hours=1),

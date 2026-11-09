@@ -215,13 +215,23 @@ dbt docs generate && dbt docs serve            # lineage graph + column docs
 
 ### 5. Airflow
 
-Any Airflow 2.9+ works (Astro CLI, MWAA, or `airflow standalone` on Linux/WSL). Install
-`airflow/requirements.txt`, copy `airflow/dags/` to your DAGs folder and `dbt/` to
-`/opt/airflow/dbt` (or set `FDIC_DBT_PROJECT_DIR`), then create:
+`airflow/` is an [Astro CLI](https://www.astronomer.io/docs/astro/cli/overview) project
+(Airflow 3 on Astro Runtime 3.3). Requires Docker Desktop.
 
-- Connections `aws_default` and `snowflake_default`
-- Variables `fdic_lambda_function` (default `fdic-extract`) and, optionally,
-  `fdic_alert_sns_topic_arn` (Terraform output `alerts_topic_arn`)
+```bash
+cd airflow
+cp .env.example .env     # fill in host paths + Snowflake account (no quotes)
+astro dev start          # UI at http://localhost:8080
+```
+
+How it's wired:
+- **dbt runs in its own virtualenv** inside the image (`Dockerfile`), because its
+  dependencies conflict with Airflow's. The DAG calls it via `FDIC_DBT_BIN`.
+- **No secrets in the image.** `docker-compose.override.yml` mounts the dbt project, the
+  Snowflake private key and your AWS CLI profile read-only at runtime.
+- **Connections and Variables come from `.env`** (`AIRFLOW_CONN_*`, `AIRFLOW_VAR_*`), so
+  there's nothing to click through in the UI.
+- The DAG imports work on both Airflow 2.x and 3.x.
 
 ### 6. Dashboard
 

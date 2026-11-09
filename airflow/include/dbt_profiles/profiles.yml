@@ -1,0 +1,16 @@
+# dbt profile used inside the Airflow containers. Everything account-specific comes from
+# environment variables set in airflow/.env (gitignored).
+fdic_bank_health:
+  target: prod
+  outputs:
+    prod:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      authenticator: snowflake_jwt
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH') }}"
+      role: fdic_transformer
+      warehouse: fdic_wh
+      database: fdic
+      schema: analytics
+      threads: 8

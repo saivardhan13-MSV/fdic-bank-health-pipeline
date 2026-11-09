@@ -30,4 +30,4 @@ infra/terraform/.terraform.lock.hcl
 # Account-specific Snowflake bootstrap
 snowflake/bootstrap_generated.sql
 infra/terraform/tfplan
-dbt/.user.yml
+**/.user.yml
