@@ -31,3 +31,9 @@ infra/terraform/.terraform.lock.hcl
 snowflake/bootstrap_generated.sql
 infra/terraform/tfplan
 **/.user.yml
+
+# Editor / assistant tool folders
+.claude/
+.cursor/
+.vscode/
+.idea/
